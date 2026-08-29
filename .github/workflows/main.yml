@@ -1,0 +1,60 @@
+name: Prepare SugarCane Project
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Extract GitHub-ready project
+        run: |
+          set -e
+
+          ZIP_FILE=$(find . -maxdepth 1 -type f -name "*.zip" | head -n 1)
+
+          if [ -z "$ZIP_FILE" ]; then
+            echo "No ZIP file found."
+            exit 1
+          fi
+
+          echo "Found: $ZIP_FILE"
+
+          mkdir -p /tmp/sugarcane
+          unzip -o "$ZIP_FILE" -d /tmp/sugarcane
+
+          rm -rf app gradle .github
+          rm -f build.gradle.kts settings.gradle.kts gradle.properties README.md .gitignore
+          rm -f AndroidManifest.xml styles.xml
+
+          cp -r /tmp/sugarcane/. .
+
+          rm -f "$ZIP_FILE"
+
+          echo "Project extracted successfully."
+          echo "Files now in repository:"
+          ls -la
+
+      - name: Commit prepared project
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add -A
+
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "Prepare complete Android project"
+            git push
+          fi
